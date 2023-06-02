@@ -22,7 +22,7 @@ export default async function handler(
       "https://hackathon.spaceandtime.dev/v1/sql/dql",
       {
         resourceId: "sandbox.interview_messages",
-        sqlText: `SELECT * FROM sandbox.interview_messages WHERE interview_id = ${interviewId} ORDER BY message_id DESC`,
+        sqlText: `SELECT * FROM sandbox.interview_messages WHERE interview_id = ${interviewId} ORDER BY message_id ASC`,
       },
       {
         headers: {

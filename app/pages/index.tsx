@@ -33,11 +33,11 @@ export default function Landing() {
         />
         <Stack spacing={3}>
           <Interviewer
-            interviewer={INTERVIEWERS.keplin}
+            interviewer={INTERVIEWERS[0]}
             backgroundColor={palette.yellow}
           />
           <Interviewer
-            interviewer={INTERVIEWERS.rosman}
+            interviewer={INTERVIEWERS[1]}
             backgroundColor={palette.purpleLight}
             textColor={theme.palette.primary.contrastText}
           />
@@ -68,11 +68,7 @@ function Interviewer(props: {
       {/* Left part */}
       <Box>
         <Avatar
-          sx={{
-            width: 128,
-            height: 128,
-            borderRadius: 96,
-          }}
+          sx={{ width: 128, height: 128 }}
           src={props.interviewer.image}
         />
       </Box>

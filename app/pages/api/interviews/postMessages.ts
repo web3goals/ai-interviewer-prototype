@@ -7,6 +7,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * API to post messages to space and time.
  *
  * TODO: Check with signed message that only interview owner can send messages
+ * TODO: Add sql injection prevention
  */
 export default async function handler(
   req: NextApiRequest,
@@ -22,11 +23,12 @@ export default async function handler(
     const accessToken = await getAccessToken();
     // Send values to space and time
     for (const message of messages) {
+      const messageContentBase64 = btoa(message.content);
       await axios.post(
         "https://hackathon.spaceandtime.dev/v1/sql/dml",
         {
           resourceId: "sandbox.interview_messages",
-          sqlText: `INSERT INTO sandbox.interview_messages (id, interview_id, message_id, date, role, content, points) VALUES ('${message.id}', ${message.interviewId}, ${message.messageId}, ${message.date}, '${message.role}', '${message.content}', ${message.points})`,
+          sqlText: `INSERT INTO sandbox.interview_messages (id, interview_id, message_id, date, role, content, points) VALUES ('${message.id}', ${message.interviewId}, ${message.messageId}, ${message.date}, '${message.role}', '${messageContentBase64}', ${message.points})`,
         },
         {
           headers: {
