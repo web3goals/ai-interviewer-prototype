@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 
 /**
  * Convert "ipfs://..." to "http://...".
@@ -36,4 +36,23 @@ export function stringToAddress(string?: string): `0x${string}` | undefined {
     return undefined;
   }
   return ethers.utils.getAddress(string) as `0x${string}`;
+}
+
+/**
+ * Convert timestamp like "1677628800" to date object.
+ */
+export function timestampToDate(
+  timestamp: number | string | BigNumber | undefined
+): Date | undefined {
+  let date;
+  if (typeof timestamp === "number") {
+    date = new Date(timestamp * 1000);
+  }
+  if (typeof timestamp === "string") {
+    date = new Date(Number(timestamp) * 1000);
+  }
+  if (timestamp instanceof BigNumber) {
+    date = new Date(timestamp.toNumber() * 1000);
+  }
+  return date;
 }

@@ -15,6 +15,7 @@ import { INTERVIEWERS } from "@/constants/interviewers";
 import useError from "@/hooks/useError";
 import { palette } from "@/theme/palette";
 import { Interviewer, InterviewMessage } from "@/types";
+import { timestampToDate } from "@/utils/converters";
 import { Avatar, Box, Typography } from "@mui/material";
 import axios from "axios";
 import { Form, Formik } from "formik";
@@ -112,8 +113,7 @@ function InterviewMessages(props: {
         id: `${props.id}_${messages.length}`,
         interviewId: props.id.toString(),
         messageId: messages.length,
-        // date: new Date().getTime(), // TODO: Use it after fix table scructure
-        date: 0,
+        date: Math.round(new Date().getTime() / 1000),
         role: "user",
         content: values.message,
         points: 0,
@@ -144,8 +144,7 @@ function InterviewMessages(props: {
         id: `${props.id}_${messages.length + 1}`,
         interviewId: props.id.toString(),
         messageId: messages.length + 1,
-        // date: new Date().getTime(), // TODO: Use it after fix table scructure
-        date: 0,
+        date: Math.round(new Date().getTime() / 1000),
         role: "assistant",
         content: chatgptResponse.data.choices?.[0]?.message?.content,
         points: 0, // TODO: Add point if chatgpt accept user's answer
@@ -286,7 +285,7 @@ function InterviewMessages(props: {
                         <AccountLink account={props.owner} />
                       )}
                       <Typography variant="body2" color="text.secondary">
-                        02/15/2023 9:37 PM
+                        {timestampToDate(message.date)?.toLocaleString()}
                       </Typography>
                       <Typography mt={1}>{message.content}</Typography>
                     </Box>
