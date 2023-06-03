@@ -1,21 +1,24 @@
 import axios from "axios";
 import nacl from "tweetnacl";
+import { createClient } from "@vercel/kv";
 
 /**
  * Source for all functions - https://github.com/spaceandtimelabs/SxT-NodeJS-SDK
  */
 
-let accessToken: string | undefined;
-
-export async function getAccessToken(): Promise<string | undefined> {
+export async function getAccessToken(): Promise<string> {
+  // Load access token
+  const kvClient = createClient({
+    url: process.env.NEXT_PUBLIC_KV_REST_API_URL || "",
+    token: process.env.NEXT_PUBLIC_KV_REST_API_TOKEN || "",
+  });
+  const kvAccessToken: any = await kvClient.get("accessToken");
   // Return current access token if defined and valid
-  if (accessToken) {
-    const isValid = await isAccessTokenValid(accessToken);
+  if (kvAccessToken) {
+    const isValid = await isAccessTokenValid(kvAccessToken);
     if (isValid) {
       console.log("Access token defined and valid");
-      return accessToken;
-    } else {
-      console.log("Access token defined, but not valid");
+      return kvAccessToken;
     }
   }
   // Generate new access token if not defined or not valid
@@ -29,15 +32,16 @@ export async function getAccessToken(): Promise<string | undefined> {
   const authCode = await generateAuthCode(userId, prefix, joinCode);
   const privateKeyUint = base64ToUint8(privateKey, publicKey);
   const signature = generateSignature(authCode, privateKeyUint);
-  const token = await generateAccessToken(
+  const accessToken = await generateAccessToken(
     userId,
     authCode,
     signature,
     publicKey,
     scheme
   );
-  // Update and return token
-  accessToken = token;
+  // Save access token
+  await kvClient.set("accessToken", accessToken);
+  // Return token
   return accessToken;
 }
 
