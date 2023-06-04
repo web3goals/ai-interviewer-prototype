@@ -1,8 +1,6 @@
 {
-  "name": "functions-hardhat-starter-kit",
-  "license": "MIT",
+  "name": "contracts",
   "version": "0.1.0",
-  "description": "Tooling for interacting with Chainlink Functions",
   "scripts": {
     "compile": "hardhat compile",
     "test": "npm run test:unit",
