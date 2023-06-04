@@ -5,6 +5,7 @@ interface ChainConfig {
   chain: Chain;
   contractAddresses: {
     profile: string;
+    interview: string;
   };
 }
 
@@ -13,11 +14,15 @@ interface ChainConfig {
  */
 export function getSupportedChainConfigs(): ChainConfig[] {
   const chainConfigs: ChainConfig[] = [];
-  if (process.env.NEXT_PUBLIC_MUMBAI_PROFILE_CONTRACT_ADDRESS) {
+  if (
+    process.env.NEXT_PUBLIC_MUMBAI_PROFILE_CONTRACT_ADDRESS &&
+    process.env.NEXT_PUBLIC_MUMBAI_INTERVIEW_CONTRACT_ADDRESS
+  ) {
     chainConfigs.push({
       chain: polygonMumbai,
       contractAddresses: {
         profile: process.env.NEXT_PUBLIC_MUMBAI_PROFILE_CONTRACT_ADDRESS,
+        interview: process.env.NEXT_PUBLIC_MUMBAI_INTERVIEW_CONTRACT_ADDRESS,
       },
     });
   }
@@ -74,5 +79,16 @@ export function chainToSupportedChainProfileContractAddress(
 ): `0x${string}` | undefined {
   return stringToAddress(
     chainToSupportedChainConfig(chain).contractAddresses.profile
+  );
+}
+
+/**
+ * Return interview contract address of specified chain if it supported, otherwise return value from default supported chain.
+ */
+export function chainToSupportedChainInterviewContractAddress(
+  chain: Chain | undefined
+): `0x${string}` | undefined {
+  return stringToAddress(
+    chainToSupportedChainConfig(chain).contractAddresses.interview
   );
 }

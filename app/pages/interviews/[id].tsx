@@ -147,7 +147,7 @@ function InterviewMessages(props: {
         date: Math.round(new Date().getTime() / 1000),
         role: "assistant",
         content: chatgptResponse.data.choices?.[0]?.message?.content,
-        points: 0, // TODO: Add point if chatgpt accept user's answer
+        points: 1, // TODO: Add point if chatgpt accept user's answer
       };
       // Send messages to space and time
       await axios.post("/api/interviews/postMessages", {

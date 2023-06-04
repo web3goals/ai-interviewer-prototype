@@ -1,10 +1,33 @@
 import Layout from "@/components/layout";
-import { CardBox, LargeLoadingButton } from "@/components/styled";
+import {
+  CardBox,
+  FullWidthSkeleton,
+  LargeLoadingButton,
+} from "@/components/styled";
 import { INTERVIEWERS } from "@/constants/interviewers";
+import { interviewContractAbi } from "@/contracts/abi/interviewContract";
+import useToasts from "@/hooks/useToast";
 import { theme } from "@/theme";
 import { palette } from "@/theme/palette";
 import { Interviewer } from "@/types";
+import {
+  chainToSupportedChainId,
+  chainToSupportedChainInterviewContractAddress,
+} from "@/utils/chains";
 import { Avatar, Box, Container, Stack, Typography } from "@mui/material";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { ethers } from "ethers";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import {
+  useAccount,
+  useContractEvent,
+  useContractRead,
+  useContractWrite,
+  useNetwork,
+  usePrepareContractWrite,
+  useWaitForTransaction,
+} from "wagmi";
 
 /**
  * Landing page.
@@ -53,6 +76,9 @@ function Interviewer(props: {
   backgroundColor?: string;
   textColor?: string;
 }) {
+  const { address } = useAccount();
+  const { openConnectModal } = useConnectModal();
+
   return (
     <CardBox
       sx={{
@@ -78,22 +104,159 @@ function Interviewer(props: {
           {props.interviewer.title}
         </Typography>
         <Typography mt={1}>{props.interviewer.subtitle}</Typography>
-        <Stack
-          direction={{ xs: "column-reverse", md: "row" }}
-          spacing={3}
-          alignItems={{ xs: "flex-start", md: "center" }}
-          mt={3}
-        >
-          {/* TODO: Add link to interview page  */}
-          {/* TODO: Or open modal to mint interview token, and redirect after that to interview page */}
-          <LargeLoadingButton variant="outlined" sx={{ background: "#FFFFFF" }}>
-            Go to {props.interviewer.name}
-          </LargeLoadingButton>
-          {/* TODO: Define earned points by loading token uri data  */}
-          <Typography fontWeight={700}>Earned ❓ XP</Typography>
-        </Stack>
+        <Box mt={3}>
+          {address ? (
+            <InterviewStatus
+              address={address}
+              interviewer={props.interviewer}
+            />
+          ) : (
+            <LargeLoadingButton
+              variant="contained"
+              onClick={() => openConnectModal?.()}
+            >
+              Connect wallet
+            </LargeLoadingButton>
+          )}
+        </Box>
       </Box>
     </CardBox>
+  );
+}
+
+function InterviewStatus(props: {
+  address: `0x${string}`;
+  interviewer: Interviewer;
+}) {
+  const { chain } = useNetwork();
+
+  const { data: isStarted } = useContractRead({
+    address: chainToSupportedChainInterviewContractAddress(chain),
+    abi: interviewContractAbi,
+    functionName: "isStarted",
+    args: [props.address, BigInt(props.interviewer.id)],
+  });
+
+  if (isStarted === undefined) {
+    return <FullWidthSkeleton />;
+  } else if (isStarted) {
+    return (
+      <InterviewStarted
+        address={props.address}
+        interviewer={props.interviewer}
+      />
+    );
+  } else {
+    return (
+      <InterviewNotStarted
+        address={props.address}
+        interviewer={props.interviewer}
+      />
+    );
+  }
+}
+
+function InterviewStarted(props: {
+  address: `0x${string}`;
+  interviewer: Interviewer;
+}) {
+  const { chain } = useNetwork();
+
+  const { data: id } = useContractRead({
+    address: chainToSupportedChainInterviewContractAddress(chain),
+    abi: interviewContractAbi,
+    functionName: "find",
+    args: [props.address, BigInt(props.interviewer.id)],
+  });
+
+  const { data: params } = useContractRead({
+    address: chainToSupportedChainInterviewContractAddress(chain),
+    abi: interviewContractAbi,
+    functionName: "getParams",
+    args: [id || BigInt(0)],
+    enabled: id !== undefined,
+  });
+
+  return (
+    <Stack
+      direction={{ xs: "column-reverse", md: "row" }}
+      spacing={3}
+      alignItems={{ xs: "flex-start", md: "center" }}
+    >
+      <Link href={`/interviews/${id}`}>
+        <LargeLoadingButton variant="contained">
+          Go to Interview
+        </LargeLoadingButton>
+      </Link>
+      {params && (
+        <Typography fontWeight={700}>
+          🚀 Earned {params.points.toString()} XP
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
+function InterviewNotStarted(props: {
+  address: `0x${string}`;
+  interviewer: Interviewer;
+}) {
+  const { chain } = useNetwork();
+  const router = useRouter();
+  const { showToastSuccess, showToastError } = useToasts();
+
+  const { config: contractPrepareConfig, isError: isContractPrepareError } =
+    usePrepareContractWrite({
+      address: chainToSupportedChainInterviewContractAddress(chain),
+      abi: interviewContractAbi,
+      functionName: "start",
+      args: [BigInt(props.interviewer.id)],
+      chainId: chainToSupportedChainId(chain),
+      onError(error: any) {
+        showToastError(error);
+      },
+    });
+  const {
+    data: contractWriteData,
+    isLoading: isContractWriteLoading,
+    write: contractWrite,
+  } = useContractWrite(contractPrepareConfig);
+  const { isLoading: isTransactionLoading, isSuccess: isTransactionSuccess } =
+    useWaitForTransaction({
+      hash: contractWriteData?.hash,
+    });
+
+  useContractEvent({
+    address: chainToSupportedChainInterviewContractAddress(chain),
+    abi: interviewContractAbi,
+    eventName: "Transfer",
+    listener(log) {
+      if (
+        log[0].args.from === ethers.constants.AddressZero &&
+        log[0].args.to === props.address
+      ) {
+        showToastSuccess("Interview is started");
+        router.push(`/interviews/${log[0].args.tokenId?.toString()}`);
+      }
+    },
+  });
+
+  const isLoading = isContractWriteLoading || isTransactionLoading;
+  const isDisabled =
+    isLoading ||
+    isTransactionSuccess ||
+    isContractPrepareError ||
+    !contractWrite;
+
+  return (
+    <LargeLoadingButton
+      variant="contained"
+      disabled={isDisabled}
+      loading={isLoading}
+      onClick={() => contractWrite?.()}
+    >
+      Start Interview
+    </LargeLoadingButton>
   );
 }
 
