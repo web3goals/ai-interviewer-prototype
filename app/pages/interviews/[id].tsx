@@ -12,15 +12,31 @@ import {
   WidgetTitle,
 } from "@/components/styled";
 import { INTERVIEWERS } from "@/constants/interviewers";
+import { interviewContractAbi } from "@/contracts/abi/interviewContract";
 import useError from "@/hooks/useError";
+import useToasts from "@/hooks/useToast";
 import { palette } from "@/theme/palette";
 import { Interviewer, InterviewMessage } from "@/types";
+import { isAddressesEqual } from "@/utils/addresses";
+import {
+  chainToSupportedChainId,
+  chainToSupportedChainInterviewContractAddress,
+} from "@/utils/chains";
 import { timestampToDate } from "@/utils/converters";
-import { Avatar, Box, Typography } from "@mui/material";
+import { Analytics } from "@mui/icons-material";
+import { Avatar, Box, Stack, SxProps, Typography } from "@mui/material";
 import axios from "axios";
 import { Form, Formik } from "formik";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import {
+  useNetwork,
+  useContractRead,
+  useAccount,
+  usePrepareContractWrite,
+  useContractWrite,
+  useWaitForTransaction,
+} from "wagmi";
 import * as yup from "yup";
 
 /**
@@ -29,27 +45,42 @@ import * as yup from "yup";
 export default function Interview() {
   const router = useRouter();
   const { id } = router.query;
+  const { chain } = useNetwork();
 
-  // TODO: Replace interview data by data loaded from contract
-  const interview = {
-    id: id?.toString() || "",
-    owner: "0x4306D7a79265D2cb85Db0c5a55ea5F4f6F73C4B1",
-    interviewerId: 0,
-    points: 42,
-  };
-  const interviewer = INTERVIEWERS[interview.interviewerId];
+  const { data: owner } = useContractRead({
+    address: chainToSupportedChainInterviewContractAddress(chain),
+    abi: interviewContractAbi,
+    functionName: "ownerOf",
+    args: [BigInt(id?.toString() || 0)],
+    enabled: id !== undefined,
+  });
+
+  const { data: params } = useContractRead({
+    address: chainToSupportedChainInterviewContractAddress(chain),
+    abi: interviewContractAbi,
+    functionName: "getParams",
+    args: [BigInt(id?.toString() || 0)],
+    enabled: id !== undefined,
+  });
 
   return (
     <Layout maxWidth="sm">
-      {id ? (
+      {id && owner && params ? (
         <>
-          <InteviewInterviewer interviewer={interviewer} />
+          <InteviewInterviewer
+            interviewer={INTERVIEWERS[Number(params?.interviewer)]}
+          />
+          <InterviewPoints
+            sx={{ mt: 6 }}
+            id={id.toString()}
+            owner={"0x4306D7a79265D2cb85Db0c5a55ea5F4f6F73C4B1"}
+            points={Number(params.points)}
+          />
           <ThickDivider sx={{ my: 8 }} />
           <InterviewMessages
-            id={interview.id}
-            owner={interview.owner}
-            points={interview.points}
-            interviewer={interviewer}
+            id={id.toString()}
+            owner={owner}
+            interviewer={INTERVIEWERS[Number(params?.interviewer)]}
           />
         </>
       ) : (
@@ -76,15 +107,115 @@ function InteviewInterviewer(props: { interviewer: Interviewer }) {
   );
 }
 
-// TODO: Display form only for interview owner
-// TODO: Change text for not interview owner
-// TODO: Display account name and avatar if defined
-function InterviewMessages(props: {
+function InterviewPoints(props: {
   id: string;
   owner: string;
   points: number;
+  sx?: SxProps;
+}) {
+  const { address } = useAccount();
+
+  return (
+    <CardBox
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        borderColor: "#000000",
+        borderWidth: 7,
+        padding: "32px 32px",
+        ...props.sx,
+      }}
+    >
+      <Typography variant="h4" fontWeight={700} textAlign="center">
+        🚀 Earned {props.points} XP
+      </Typography>
+      <Stack
+        direction="row"
+        justifyContent="center"
+        alignItems="center"
+        spacing={1}
+        mt={1}
+      >
+        <Typography>by</Typography>
+        <AccountLink account={props.owner} variant="body1" />
+      </Stack>
+      {isAddressesEqual(address, props.owner) && (
+        <InterviewPointsRefreshButton id={props.id} sx={{ mt: 2 }} />
+      )}
+    </CardBox>
+  );
+}
+
+function InterviewPointsRefreshButton(props: { id: string; sx: SxProps }) {
+  const { chain } = useNetwork();
+  const { showToastSuccess, showToastError } = useToasts();
+
+  const requestSource =
+    '// Define args\r\nconst interviewId = args[0]\r\nconsole.log(`Interview ID: ${interviewId}`)\r\n\r\n// Make request\r\nconst request = Functions.makeHttpRequest({\r\n  url: `https://ai-interviewer-app.vercel.app/api/interviews/getTotalPoints?interviewId=${interviewId}`,\r\n})\r\nconst [response] = await Promise.all([request])\r\nif (response.error) {\r\n  throw Error("Request is failed")\r\n}\r\n\r\n// Define total points\r\nconst totalPoints = response.data.data\r\nconsole.log(`Total points: ${totalPoints}`)\r\n\r\n// Return result\r\nreturn Functions.encodeUint256(totalPoints)\r\n';
+
+  const { config: contractPrepareConfig, isError: isContractPrepareError } =
+    usePrepareContractWrite({
+      address: chainToSupportedChainInterviewContractAddress(chain),
+      abi: interviewContractAbi,
+      functionName: "executeRequest",
+      args: [
+        BigInt(props.id),
+        requestSource,
+        "0x",
+        [props.id],
+        BigInt(process.env.NEXT_PUBLIC_CHAINLINK_FUNCTIONS_SUBSCRIPTION || ""),
+        100000,
+      ],
+      chainId: chainToSupportedChainId(chain),
+      onError(error: any) {
+        showToastError(error);
+      },
+    });
+  const {
+    data: contractWriteData,
+    isLoading: isContractWriteLoading,
+    write: contractWrite,
+  } = useContractWrite(contractPrepareConfig);
+  const { isLoading: isTransactionLoading, isSuccess: isTransactionSuccess } =
+    useWaitForTransaction({
+      hash: contractWriteData?.hash,
+    });
+
+  useEffect(() => {
+    if (isTransactionSuccess) {
+      showToastSuccess("Points will be refreshed soon");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTransactionSuccess]);
+
+  const isLoading = isContractWriteLoading || isTransactionLoading;
+  const isDisabled =
+    isLoading ||
+    isTransactionSuccess ||
+    isContractPrepareError ||
+    !contractWrite;
+
+  return (
+    <LargeLoadingButton
+      variant="contained"
+      disabled={isDisabled}
+      loading={isLoading}
+      onClick={() => contractWrite?.()}
+      sx={{ ...props.sx }}
+    >
+      Refresh
+    </LargeLoadingButton>
+  );
+}
+
+// TODO: Display owner name and avatar if defined
+function InterviewMessages(props: {
+  id: string;
+  owner: string;
   interviewer: Interviewer;
 }) {
+  const { address } = useAccount();
   const { handleError } = useError();
   const [messages, setMessages] = useState<InterviewMessage[] | undefined>();
 
@@ -191,112 +322,104 @@ function InterviewMessages(props: {
   return (
     <Box display="flex" flexDirection="column" alignItems="center">
       <Typography variant="h4" fontWeight={700} textAlign="center">
-        ✍️ Your interview
+        🎤️ Interview
       </Typography>
-      <Typography textAlign="center" mt={1}>
-        where you have already earned <strong>{props.points} XP</strong>
-      </Typography>
-      {messages ? (
-        <>
-          {/* Form */}
-          <Formik
-            initialValues={formValues}
-            validationSchema={formValidationSchema}
-            onSubmit={submitForm}
-          >
-            {({ values, errors, touched, handleChange }) => (
-              <Form
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                }}
-              >
-                <FormikHelper
-                  onChange={(values: any) => setFormValues(values)}
-                />
-                {/* Message input */}
-                <WidgetBox bgcolor={palette.blue} mt={2}>
-                  <WidgetTitle>Message</WidgetTitle>
-                  <WidgetInputTextField
-                    id="message"
-                    name="message"
-                    placeholder="I’m ready!"
-                    value={values.message}
-                    onChange={handleChange}
-                    error={touched.message && Boolean(errors.message)}
-                    helperText={touched.message && errors.message}
-                    disabled={isFormSubmitting}
-                    multiline
-                    maxRows={4}
-                    sx={{ width: 1 }}
-                  />
-                </WidgetBox>
-                {/* Submit button */}
-                <LargeLoadingButton
-                  loading={isFormSubmitting}
-                  variant="outlined"
-                  type="submit"
+      {messages && isAddressesEqual(address, props.owner) && (
+        <Formik
+          initialValues={formValues}
+          validationSchema={formValidationSchema}
+          onSubmit={submitForm}
+        >
+          {({ values, errors, touched, handleChange }) => (
+            <Form
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <FormikHelper onChange={(values: any) => setFormValues(values)} />
+              {/* Message input */}
+              <WidgetBox bgcolor={palette.blue} mt={2}>
+                <WidgetTitle>Message</WidgetTitle>
+                <WidgetInputTextField
+                  id="message"
+                  name="message"
+                  placeholder="I’m ready!"
+                  value={values.message}
+                  onChange={handleChange}
+                  error={touched.message && Boolean(errors.message)}
+                  helperText={touched.message && errors.message}
                   disabled={isFormSubmitting}
-                  sx={{ mt: 2 }}
-                >
-                  Post
-                </LargeLoadingButton>
-              </Form>
-            )}
-          </Formik>
-          {/* Messages */}
-          <Box width={1} mt={2}>
-            {messages
-              .slice(0)
-              .reverse()
-              .map((message, index) => {
-                if (message.role === "system") {
-                  return <Box key={index} />;
-                }
-                return (
-                  <CardBox
-                    key={index}
-                    sx={{ display: "flex", flexDirection: "row", mt: 2 }}
-                  >
-                    {/* Left part */}
-                    <Box>
-                      {message.role === "assistant" ? (
-                        <Avatar
-                          sx={{ width: 64, height: 64 }}
-                          src={props.interviewer.imageAlt}
-                        />
-                      ) : (
-                        <AccountAvatar
-                          account={props.owner}
-                          size={64}
-                          emojiSize={28}
-                        />
-                      )}
-                    </Box>
-                    {/* Right part */}
-                    <Box ml={1.5}>
-                      {message.role === "assistant" ? (
-                        <Typography fontWeight={700} variant="body2">
-                          {props.interviewer.name}
-                        </Typography>
-                      ) : (
-                        <AccountLink account={props.owner} />
-                      )}
-                      <Typography variant="body2" color="text.secondary">
-                        {timestampToDate(message.date)?.toLocaleString()}
-                      </Typography>
-                      <Typography mt={1}>{message.content}</Typography>
-                    </Box>
-                  </CardBox>
-                );
-              })}
-          </Box>
-        </>
-      ) : (
-        <FullWidthSkeleton />
+                  multiline
+                  maxRows={4}
+                  sx={{ width: 1 }}
+                />
+              </WidgetBox>
+              {/* Submit button */}
+              <LargeLoadingButton
+                loading={isFormSubmitting}
+                variant="outlined"
+                type="submit"
+                disabled={isFormSubmitting}
+                sx={{ mt: 2 }}
+              >
+                Post
+              </LargeLoadingButton>
+            </Form>
+          )}
+        </Formik>
       )}
+      {messages && (
+        <Box width={1} mt={2}>
+          {messages
+            .slice(0)
+            .reverse()
+            .map((message, index) => {
+              if (message.role === "system") {
+                return <Box key={index} />;
+              }
+              return (
+                <CardBox
+                  key={index}
+                  sx={{ display: "flex", flexDirection: "row", mt: 2 }}
+                >
+                  {/* Left part */}
+                  <Box>
+                    {message.role === "assistant" ? (
+                      <Avatar
+                        sx={{ width: 64, height: 64 }}
+                        src={props.interviewer.imageAlt}
+                      />
+                    ) : (
+                      <AccountAvatar
+                        account={props.owner}
+                        size={64}
+                        emojiSize={28}
+                      />
+                    )}
+                  </Box>
+                  {/* Right part */}
+                  <Box ml={1.5}>
+                    {message.role === "assistant" ? (
+                      <Typography fontWeight={700} variant="body2">
+                        {props.interviewer.name}
+                      </Typography>
+                    ) : (
+                      <AccountLink account={props.owner} />
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      {timestampToDate(message.date)?.toLocaleString()}
+                    </Typography>
+                    <Typography mt={1}>{message.content}</Typography>
+                  </Box>
+                </CardBox>
+              );
+            })}
+        </Box>
+      )}
+      {!messages && <FullWidthSkeleton />}
     </Box>
   );
 }

@@ -267,6 +267,7 @@ function NewInterviewers() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        borderColor: "#000000",
         borderWidth: 7,
         padding: "38px 32px",
       }}
