@@ -23,18 +23,17 @@ import {
   chainToSupportedChainInterviewContractAddress,
 } from "@/utils/chains";
 import { timestampToDate } from "@/utils/converters";
-import { Analytics } from "@mui/icons-material";
 import { Avatar, Box, Stack, SxProps, Typography } from "@mui/material";
 import axios from "axios";
 import { Form, Formik } from "formik";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import {
-  useNetwork,
-  useContractRead,
   useAccount,
-  usePrepareContractWrite,
+  useContractRead,
   useContractWrite,
+  useNetwork,
+  usePrepareContractWrite,
   useWaitForTransaction,
 } from "wagmi";
 import * as yup from "yup";
@@ -73,7 +72,7 @@ export default function Interview() {
           <InterviewPoints
             sx={{ mt: 6 }}
             id={id.toString()}
-            owner={"0x4306D7a79265D2cb85Db0c5a55ea5F4f6F73C4B1"}
+            owner={owner}
             points={Number(params.points)}
           />
           <ThickDivider sx={{ my: 8 }} />
@@ -271,14 +270,18 @@ function InterviewMessages(props: {
         }
       );
       // Define chatgpt message
+      const chatgptMessageContent: string =
+        chatgptResponse.data.choices?.[0]?.message?.content;
       const chatgptMessage: InterviewMessage = {
         id: `${props.id}_${messages.length + 1}`,
         interviewId: props.id.toString(),
         messageId: messages.length + 1,
         date: Math.round(new Date().getTime() / 1000),
         role: "assistant",
-        content: chatgptResponse.data.choices?.[0]?.message?.content,
-        points: 1, // TODO: Add point if chatgpt accept user's answer
+        content: chatgptMessageContent,
+        points: chatgptMessageContent.toLowerCase().includes("plus one point")
+          ? 1
+          : 0,
       };
       // Send messages to space and time
       await axios.post("/api/interviews/postMessages", {
@@ -295,13 +298,25 @@ function InterviewMessages(props: {
   }
 
   /**
-   * Load messages from space and time
+   * Load messages
    */
   useEffect(() => {
+    // Init messages with system message
+    const messages: InterviewMessage[] = [
+      {
+        id: `${props.id}_0`,
+        interviewId: props.id.toString(),
+        messageId: 0,
+        date: 0,
+        role: "system",
+        content: props.interviewer.prompt,
+        points: 0,
+      },
+    ];
+    // Load messages from space and time using api
     axios
       .get(`/api/interviews/getMessages?interviewId=${props.id}`)
       .then((response) => {
-        const messages: InterviewMessage[] = [];
         for (const responseMessage of response.data.data) {
           messages.push({
             id: responseMessage.ID,
