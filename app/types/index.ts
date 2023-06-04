@@ -6,6 +6,7 @@ export type Interviewer = {
   subtitle: string;
   image: string;
   imageAlt: string;
+  prompt: string;
 };
 
 export type InterviewMessage = {
