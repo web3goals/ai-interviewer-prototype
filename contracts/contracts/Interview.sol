@@ -48,7 +48,7 @@ contract Interview is ERC721, Ownable, FunctionsClient {
 
   function start(uint interviewer) public {
     // Check interview
-    if (getParams(msg.sender, interviewer).started != 0) {
+    if (isStarted(msg.sender, interviewer)) {
       revert("Interview is already started");
     }
     // Update counter
@@ -110,14 +110,19 @@ contract Interview is ERC721, Ownable, FunctionsClient {
     return _params[tokenId];
   }
 
-  function getParams(address owner, uint interviewer) public view returns (Params memory) {
-    Params memory params;
+  function isStarted(address owner, uint interviewer) public view returns (bool) {
+    uint tokenId = find(owner, interviewer);
+    return _params[tokenId].started != 0;
+  }
+
+  function find(address owner, uint interviewer) public view returns (uint) {
+    uint tokenId;
     for (uint i = 1; i <= _counter.current(); i++) {
       if (ownerOf(i) == owner && _params[i].interviewer == interviewer) {
-        params = _params[i];
+        tokenId = i;
       }
     }
-    return params;
+    return tokenId;
   }
 
   function tokenURI(uint tokenId) public view override returns (string memory) {
