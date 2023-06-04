@@ -2,6 +2,7 @@ export type Interviewer = {
   id: number;
   name: string;
   title: string;
+  titleAlt: string;
   subtitle: string;
   image: string;
   imageAlt: string;

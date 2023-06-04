@@ -177,24 +177,26 @@ function InterviewStarted(props: {
     enabled: id !== undefined,
   });
 
-  return (
-    <Stack
-      direction={{ xs: "column-reverse", md: "row" }}
-      spacing={3}
-      alignItems={{ xs: "flex-start", md: "center" }}
-    >
-      <Link href={`/interviews/${id}`}>
-        <LargeLoadingButton variant="contained">
-          Go to Interview
-        </LargeLoadingButton>
-      </Link>
-      {params && (
+  if (id && params) {
+    return (
+      <Stack
+        direction={{ xs: "column-reverse", md: "row" }}
+        spacing={3}
+        alignItems={{ xs: "flex-start", md: "center" }}
+      >
+        <Link href={`/interviews/${id}`}>
+          <LargeLoadingButton variant="contained">
+            Go to Interview
+          </LargeLoadingButton>
+        </Link>
         <Typography fontWeight={700}>
           🚀 Earned {params.points.toString()} XP
         </Typography>
-      )}
-    </Stack>
-  );
+      </Stack>
+    );
+  }
+
+  return <></>;
 }
 
 function InterviewNotStarted(props: {
