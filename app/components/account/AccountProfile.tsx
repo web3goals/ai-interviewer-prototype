@@ -151,7 +151,7 @@ export default function AccountProfile(props: { address: string }) {
         {isAddressesEqual(address, props.address) && (
           <Stack direction="column" spacing={2} sx={{ mt: 2 }}>
             <Link href="/accounts/edit" legacyBehavior>
-              <LargeLoadingButton variant="contained">
+              <LargeLoadingButton variant="outlined">
                 {profileUriData ? "Edit Profile" : "Create Profile"}
               </LargeLoadingButton>
             </Link>

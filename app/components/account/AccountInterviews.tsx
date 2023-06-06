@@ -4,7 +4,7 @@ import { theme } from "@/theme";
 import { palette } from "@/theme/palette";
 import { Interviewer } from "@/types";
 import { chainToSupportedChainInterviewContractAddress } from "@/utils/chains";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, SxProps, Typography } from "@mui/material";
 import Link from "next/link";
 import { useContractRead, useNetwork } from "wagmi";
 import { CardBox, LargeLoadingButton } from "../styled";
@@ -12,26 +12,24 @@ import { CardBox, LargeLoadingButton } from "../styled";
 /**
  * A component with account interviews.
  */
-export default function AccountInterviews(props: { address: `0x${string}` }) {
+export default function AccountInterviews(props: {
+  address: `0x${string}`;
+  sx?: SxProps;
+}) {
   return (
-    <Box display="flex" flexDirection="column" alignItems="center">
-      <Typography variant="h4" fontWeight={700} textAlign="center">
-        🎤 Interviews
-      </Typography>
-      <Stack width={1} spacing={3} mt={3}>
-        <AccountInterview
-          address={props.address}
-          interviewer={INTERVIEWERS[0]}
-          backgroundColor={palette.yellow}
-        />
-        <AccountInterview
-          address={props.address}
-          interviewer={INTERVIEWERS[1]}
-          backgroundColor={palette.purpleLight}
-          textColor={theme.palette.primary.contrastText}
-        />
-      </Stack>
-    </Box>
+    <Stack width={1} spacing={3} sx={{ ...props.sx }}>
+      <AccountInterview
+        address={props.address}
+        interviewer={INTERVIEWERS[0]}
+        backgroundColor={palette.yellow}
+      />
+      <AccountInterview
+        address={props.address}
+        interviewer={INTERVIEWERS[1]}
+        backgroundColor={palette.purpleLight}
+        textColor={theme.palette.primary.contrastText}
+      />
+    </Stack>
   );
 }
 
