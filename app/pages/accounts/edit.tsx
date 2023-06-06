@@ -14,7 +14,7 @@ import { useAccount, useContractRead, useNetwork } from "wagmi";
 /**
  * Page to edit account profile.
  */
-export default function AccountEditProfile() {
+export default function EditAccountProfile() {
   const { handleError } = useError();
   const { chain } = useNetwork();
   const { address } = useAccount();

@@ -82,6 +82,16 @@ function Links(props: { sx?: SxProps }) {
           Interviewers
         </MuiLink>
       </Link>
+      <Link href="/accounts" passHref legacyBehavior>
+        <MuiLink
+          fontWeight={700}
+          color="inherit"
+          display={{ xs: "none", sm: "flex" }}
+          ml={4}
+        >
+          Explore
+        </MuiLink>
+      </Link>
       {isConnected && (
         <Link href={`/accounts/${address}`} passHref legacyBehavior>
           <MuiLink
@@ -112,6 +122,7 @@ function Links(props: { sx?: SxProps }) {
       </IconButton>
       <NavigationMenu
         displayInterviewersLink
+        displayExploreLink
         displayResumeLink
         sx={{ display: { xs: "flex", sm: "none" }, ml: 1.5 }}
       />
@@ -121,6 +132,7 @@ function Links(props: { sx?: SxProps }) {
 
 function NavigationMenu(props: {
   displayInterviewersLink?: boolean;
+  displayExploreLink?: boolean;
   displayResumeLink?: boolean;
   sx?: SxProps;
 }) {
@@ -185,6 +197,11 @@ function NavigationMenu(props: {
         {props.displayInterviewersLink && (
           <Link href="/#interviewers" passHref legacyBehavior>
             <MenuItem>Interviewers</MenuItem>
+          </Link>
+        )}
+        {props.displayExploreLink && (
+          <Link href="/accounts" passHref legacyBehavior>
+            <MenuItem>Explore</MenuItem>
           </Link>
         )}
         {props.displayResumeLink && isConnected && (

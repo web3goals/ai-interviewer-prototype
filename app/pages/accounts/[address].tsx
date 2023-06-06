@@ -5,9 +5,9 @@ import { ThickDivider } from "@/components/styled";
 import { useRouter } from "next/router";
 
 /**
- * Page with an account resume.
+ * Page with an account.
  */
-export default function Resume() {
+export default function Account() {
   const router = useRouter();
   const { address } = router.query;
 
