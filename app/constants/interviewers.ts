@@ -6,7 +6,8 @@ export const INTERVIEWERS: Interviewer[] = [
     name: "Keplin",
     title: "JavaScript Interviewer",
     titleAlt: "JavaScript",
-    subtitle: "Hey, I’m Keplin! JavaScript interviewer...", // TODO: Implement subtitle
+    subtitle:
+      "Hi, I'm Keplin. Don't expect any favors from me. I am the strictest interviewer here.",
     image: "/images/keplin.png",
     imageAlt: "/images/keplinAlt.png",
     prompt:
@@ -17,7 +18,8 @@ export const INTERVIEWERS: Interviewer[] = [
     name: "Rosman",
     title: "Solidity Interviewer",
     titleAlt: "Solidity",
-    subtitle: "Hey, I’m Rosman! Solidity interviewer...", // TODO: Implement subtitle
+    subtitle:
+      "Greetings, I am Rosman. Don't be afraid of me. I won't scold you for wrong answers.",
     image: "/images/rosman.png",
     imageAlt: "/images/rosmanAlt.png",
     prompt:
