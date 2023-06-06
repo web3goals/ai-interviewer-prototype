@@ -15,7 +15,7 @@ export default function AccountLink(props: {
   sx?: SxProps;
 }) {
   return (
-    <Link href={`/resumes/${props.account}`} passHref legacyBehavior>
+    <Link href={`/accounts/${props.account}`} passHref legacyBehavior>
       <MuiLink
         fontWeight={700}
         variant={props.variant || "body2"}

@@ -13,18 +13,22 @@ import {
 } from "@/components/styled";
 import { INTERVIEWERS } from "@/constants/interviewers";
 import { interviewContractAbi } from "@/contracts/abi/interviewContract";
+import { profileContractAbi } from "@/contracts/abi/profileContract";
 import useError from "@/hooks/useError";
 import useToasts from "@/hooks/useToast";
+import useUriDataLoader from "@/hooks/useUriDataLoader";
 import { palette } from "@/theme/palette";
-import { Interviewer, InterviewMessage } from "@/types";
+import { Interviewer, InterviewMessage, ProfileUriData } from "@/types";
 import { isAddressesEqual } from "@/utils/addresses";
 import {
   chainToSupportedChainId,
   chainToSupportedChainInterviewContractAddress,
+  chainToSupportedChainProfileContractAddress,
 } from "@/utils/chains";
-import { timestampToDate } from "@/utils/converters";
+import { stringToAddress, timestampToDate } from "@/utils/converters";
 import { Avatar, Box, Stack, SxProps, Typography } from "@mui/material";
 import axios from "axios";
+import { ethers } from "ethers";
 import { Form, Formik } from "formik";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -46,6 +50,9 @@ export default function Interview() {
   const { id } = router.query;
   const { chain } = useNetwork();
 
+  /**
+   * Define owner
+   */
   const { data: owner } = useContractRead({
     address: chainToSupportedChainInterviewContractAddress(chain),
     abi: interviewContractAbi,
@@ -54,6 +61,9 @@ export default function Interview() {
     enabled: id !== undefined,
   });
 
+  /**
+   * Define params
+   */
   const { data: params } = useContractRead({
     address: chainToSupportedChainInterviewContractAddress(chain),
     abi: interviewContractAbi,
@@ -61,6 +71,18 @@ export default function Interview() {
     args: [BigInt(id?.toString() || 0)],
     enabled: id !== undefined,
   });
+
+  /**
+   * Define owner profile uri data
+   */
+  const { data: ownerProfileUri } = useContractRead({
+    address: chainToSupportedChainProfileContractAddress(chain),
+    abi: profileContractAbi,
+    functionName: "getURI",
+    args: [stringToAddress(owner) || ethers.constants.AddressZero],
+  });
+  const { data: ownerProfileUriData } =
+    useUriDataLoader<ProfileUriData>(ownerProfileUri);
 
   return (
     <Layout maxWidth="sm">
@@ -73,12 +95,14 @@ export default function Interview() {
             sx={{ mt: 6 }}
             id={id.toString()}
             owner={owner}
+            ownerProfileUriData={ownerProfileUriData}
             points={Number(params.points)}
           />
           <ThickDivider sx={{ my: 8 }} />
           <InterviewMessages
             id={id.toString()}
             owner={owner}
+            ownerProfileUriData={ownerProfileUriData}
             interviewer={INTERVIEWERS[Number(params?.interviewer)]}
           />
         </>
@@ -109,6 +133,7 @@ function InteviewInterviewer(props: { interviewer: Interviewer }) {
 function InterviewPoints(props: {
   id: string;
   owner: string;
+  ownerProfileUriData?: ProfileUriData;
   points: number;
   sx?: SxProps;
 }) {
@@ -137,7 +162,17 @@ function InterviewPoints(props: {
         mt={1}
       >
         <Typography>by</Typography>
-        <AccountLink account={props.owner} variant="body1" />
+        <AccountAvatar
+          size={24}
+          emojiSize={12}
+          account={props.owner}
+          accountProfileUriData={props.ownerProfileUriData}
+        />
+        <AccountLink
+          account={props.owner}
+          accountProfileUriData={props.ownerProfileUriData}
+          variant="body1"
+        />
       </Stack>
       {isAddressesEqual(address, props.owner) && (
         <InterviewPointsRefreshButton id={props.id} sx={{ mt: 2 }} />
@@ -208,10 +243,10 @@ function InterviewPointsRefreshButton(props: { id: string; sx: SxProps }) {
   );
 }
 
-// TODO: Display owner name and avatar if defined
 function InterviewMessages(props: {
   id: string;
   owner: string;
+  ownerProfileUriData?: ProfileUriData;
   interviewer: Interviewer;
 }) {
   const { address } = useAccount();
@@ -410,6 +445,7 @@ function InterviewMessages(props: {
                     ) : (
                       <AccountAvatar
                         account={props.owner}
+                        accountProfileUriData={props.ownerProfileUriData}
                         size={64}
                         emojiSize={28}
                       />
@@ -422,7 +458,10 @@ function InterviewMessages(props: {
                         {props.interviewer.name}
                       </Typography>
                     ) : (
-                      <AccountLink account={props.owner} />
+                      <AccountLink
+                        account={props.owner}
+                        accountProfileUriData={props.ownerProfileUriData}
+                      />
                     )}
                     <Typography variant="body2" color="text.secondary">
                       {timestampToDate(message.date)?.toLocaleString()}

@@ -83,14 +83,14 @@ function Links(props: { sx?: SxProps }) {
         </MuiLink>
       </Link>
       {isConnected && (
-        <Link href={`/resumes/${address}`} passHref legacyBehavior>
+        <Link href={`/accounts/${address}`} passHref legacyBehavior>
           <MuiLink
             fontWeight={700}
             color="inherit"
             display={{ xs: "none", sm: "flex" }}
             ml={4}
           >
-            Resume
+            My resume
           </MuiLink>
         </Link>
       )}
@@ -188,8 +188,8 @@ function NavigationMenu(props: {
           </Link>
         )}
         {props.displayResumeLink && isConnected && (
-          <Link href={`/resumes/${address}`} passHref legacyBehavior>
-            <MenuItem>Account</MenuItem>
+          <Link href={`/accounts/${address}`} passHref legacyBehavior>
+            <MenuItem>My resume</MenuItem>
           </Link>
         )}
         <Divider />
